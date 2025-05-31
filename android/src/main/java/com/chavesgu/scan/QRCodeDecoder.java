@@ -215,33 +215,37 @@ public class QRCodeDecoder {
     }
 
 
-    public static String decodeQRCode(Context context, String path) {
+    public static Map<String, Object> decodeQRCode(Context context, String path) {
         BitmapFactory.Options sizeOptions = new BitmapFactory.Options();
         sizeOptions.inJustDecodeBounds = true;
         BitmapFactory.decodeFile(path, sizeOptions);
+    
         BitmapFactory.Options decodeOptions = new BitmapFactory.Options();
         if (sizeOptions.outWidth * sizeOptions.outHeight * 3 > 10 * 1024 * 1024) {
-            Log.i("scan", String.format("bitmap too large %d x %d",sizeOptions.outWidth, sizeOptions.outHeight));
+            Log.i("scan", String.format("bitmap too large %d x %d", sizeOptions.outWidth, sizeOptions.outHeight));
             decodeOptions.inSampleSize = 2;
         }
+    
         Bitmap bitmap = BitmapFactory.decodeFile(path, decodeOptions);
-
-        HmsScanAnalyzerOptions options = new HmsScanAnalyzerOptions.Creator().setPhotoMode(true).create();
-        HmsScan[] hmsScans = ScanUtil.decodeWithBitmap(context, bitmap, options);
-
-        if (hmsScans != null && hmsScans.length > 0) {
-            return hmsScans[0].getOriginalValue();
-        }
-        return syncDecodeQRCode(path);
+        return decodeQRCode(context, bitmap); // reuse bitmap version
     }
 
-    public static String decodeQRCode(Context context, Bitmap bitmap) {
+
+    public static Map<String, Object> decodeQRCode(Context context, Bitmap bitmap) {
+        Map<String, Object> resultMap = new HashMap<>();
         HmsScanAnalyzerOptions options = new HmsScanAnalyzerOptions.Creator().setPhotoMode(true).create();
         HmsScan[] hmsScans = ScanUtil.decodeWithBitmap(context, bitmap, options);
-
+    
         if (hmsScans != null && hmsScans.length > 0) {
-            return hmsScans[0].getOriginalValue();
+            resultMap.put("value", hmsScans[0].getOriginalValue());
+            resultMap.put("isBarcode", !hmsScans[0].getScanTypeForm().equals(HmsScan.QRCODE_SCAN_TYPE_FORM));
+            return resultMap;
         }
-        return syncDecodeQRCode(bitmap);
+    
+        // Fallback to ZXing
+        String zxingResult = syncDecodeQRCode(bitmap);
+        resultMap.put("value", zxingResult);
+        resultMap.put("isBarcode", false); // assume it's QR if ZXing handled it
+        return resultMap;
     }
 }
