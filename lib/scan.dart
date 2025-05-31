@@ -3,6 +3,20 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+class ScanResult {
+  final String value;
+  final bool isBarcode;
+
+  ScanResult({required this.value, required this.isBarcode});
+
+  factory ScanResult.fromMap(Map<String, dynamic> map) {
+    return ScanResult(
+      value: map['value'],
+      isBarcode: map['isBarcode'],
+    );
+  }
+}
+
 class Scan {
   static const MethodChannel _channel = const MethodChannel('chavesgu/scan');
 
@@ -11,9 +25,10 @@ class Scan {
     return version;
   }
 
-  static Future<String?> parse(String path) async {
-    final String? result = await _channel.invokeMethod('parse', path);
-    return result;
+  static Future<ScanResult?> parse(String path) async {
+    final result = await _channel.invokeMethod<Map>('parse', path);
+    if (result == null) return null;
+    return ScanResult.fromMap(Map<String, dynamic>.from(result));
   }
 }
 
