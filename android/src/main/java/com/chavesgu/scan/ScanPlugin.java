@@ -106,31 +106,36 @@ public class ScanPlugin implements FlutterPlugin, MethodCallHandler, ActivityAwa
   /**
    * AsyncTask 静态内部类，防止内存泄漏
    */
-  static class QrCodeAsyncTask extends AsyncTask<String, Integer, String> {
+  static class QrCodeAsyncTask extends AsyncTask<String, Integer, Map<String, Object>> {
     private final WeakReference<ScanPlugin> mWeakReference;
     private final String path;
-
+  
     public QrCodeAsyncTask(ScanPlugin plugin, String path) {
       mWeakReference = new WeakReference<>(plugin);
       this.path = path;
     }
-
+  
     @Override
-    protected String doInBackground(String... strings) {
-      // 解析二维码/条码
-      return QRCodeDecoder.decodeQRCode(mWeakReference.get().flutterPluginBinding.getApplicationContext(), path);
+    protected Map<String, Object> doInBackground(String... strings) {
+      return QRCodeDecoder.decodeQRCode(
+        mWeakReference.get().flutterPluginBinding.getApplicationContext(),
+        path
+      );
     }
-
+  
     @Override
-    protected void onPostExecute(String s) {
+    protected void onPostExecute(Map<String, Object> s) {
       super.onPostExecute(s);
-      //识别出图片二维码/条码，内容为s
-      ScanPlugin plugin = (ScanPlugin) mWeakReference.get();
+      ScanPlugin plugin = mWeakReference.get();
+      if (plugin == null || plugin._result == null) return;
+  
       plugin._result.success(s);
       plugin.task.cancel(true);
       plugin.task = null;
-      if (s!=null) {
-        Vibrator myVib = (Vibrator) plugin.flutterPluginBinding.getApplicationContext().getSystemService(VIBRATOR_SERVICE);
+  
+      if (s != null && s.get("value") != null) {
+        Vibrator myVib = (Vibrator) plugin.flutterPluginBinding.getApplicationContext()
+            .getSystemService(VIBRATOR_SERVICE);
         if (myVib != null) {
           if (Build.VERSION.SDK_INT >= 26) {
             myVib.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE));
